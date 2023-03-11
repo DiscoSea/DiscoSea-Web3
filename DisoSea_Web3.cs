@@ -18,6 +18,7 @@ public class DiscoSea_Web3 : MonoBehaviour
     byte[] Associated_Token_Program = converTobyte("8c97258f4e2489f1bb3d1029148e0d830b5a1399daff1084048e7bd8dbe9f859");
     byte[] TOKEN_PROGRAM_ID = converTobyte("06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9");
     byte[] CMV2 = converTobyte("092aee3dfc2d0e55782313837969eaf52151c096c06b5c2a82f086a503e82c34");
+    byte[] Collection_Mint = converTobyte("3cf0d1d9528cafadd61325b9b0b7245b15e17f39b67e3d96c6a30981b3dce193");
     Pda metaDataPda = new Pda();
     Pda collectionPda = new Pda();
     Pda masterEditionPda = new Pda();
@@ -2787,7 +2788,13 @@ public class DiscoSea_Web3 : MonoBehaviour
         feePayer_pK = GetPkFromSk(feePayer_sK);
 
 
-        byte[] mint_account_sK = converTobyte("CAABC08196BDCCF18E47CD02516102B030512D01608ADC84E783784D422861AC");
+        //byte[] mint_account_sK = converTobyte("CAABC08196BDCCF18E47CD02516102B030512D01608ADC84E783784D422861AC");
+        //byte[] mint_account_pK = GetPkFromSk(mint_account_sK);
+
+        Keypair keypair = new Keypair();
+        keypair = GenerateKeyPair();
+        byte[] mint_account_sK = keypair.SecretKey;
+        byte[] mint_account_pK = keypair.PublicKey;
 
 
         byte[] seed;
@@ -2802,7 +2809,7 @@ public class DiscoSea_Web3 : MonoBehaviour
         byte[] msg1 = feePayer_pK;
 
         //2: Mint Account public key
-        byte[] msg2 = GetPkFromSk(mint_account_sK);
+        byte[] msg2 = mint_account_pK;
 
 
         //3: Collection Pda
@@ -2814,17 +2821,25 @@ public class DiscoSea_Web3 : MonoBehaviour
         byte[] msg3 = collectionPda.PublicKey;
 
         //4: Master Edition
-        byte[] msg4 = converTobyte("2fa4528add9677f48ae1bf55ff73522749009964d9e846dbe6d0b1f1046d2fdd");
+        //byte[] msg4 = converTobyte("2fa4528add9677f48ae1bf55ff73522749009964d9e846dbe6d0b1f1046d2fdd");
+        string metadata_string = "metadata";
+        byte[] metadata_byte = Encoding.ASCII.GetBytes(metadata_string);
+        string edition_string = "edition";
+        byte[] edition_byte = Encoding.ASCII.GetBytes(edition_string);
+        seed = metadata_byte.Concat(Token_MetaData_Program).Concat(mint_account_pK).Concat(edition_byte).ToArray();
+        masterEditionPda = findProgramAddressSync(seed, Token_MetaData_Program, masterEditionPda);
+        byte[] msg4 = masterEditionPda.PublicKey;
 
         //5: Associated Token Program: Account
-        //byte[] msg5 = converTobyte("84d43da655ba744f6fec8e572c633fbe3b1c48e410590933d1a409e6672662f0");
-        ////mint_account_pK
-        //byte[] t3 = msg2;
         seed = feePayer_pK.Concat(TOKEN_PROGRAM_ID).Concat(msg2).ToArray();
         byte[] msg5 = findProgramAddressSync(seed, Associated_Token_Program, metaDataPda).PublicKey;
 
         //6: Collection Metadata
-        byte[] msg6 = converTobyte("f0a630e4329b26a08e2241c2f511597ef2731074429ccccc0aec0be1ea1355bf");
+        //byte[] msg6 = converTobyte("f0a630e4329b26a08e2241c2f511597ef2731074429ccccc0aec0be1ea1355bf");
+        seed = metadata_byte.Concat(Token_MetaData_Program).Concat(Collection_Mint).ToArray();
+        masterEditionPda = findProgramAddressSync(seed, Token_MetaData_Program, masterEditionPda);
+        byte[] msg6 = masterEditionPda.PublicKey;
+
 
         //7: Wallet Account / Creator Real
         byte[] msg7 = converTobyte("f294ce018e8ab0fdb02d86321f8a727cecce3ac3821f4241faf73a0f792e2fae");
@@ -2850,13 +2865,20 @@ public class DiscoSea_Web3 : MonoBehaviour
         byte[] msg10 = converTobyte("0000000000000000000000000000000000000000000000000000000000000000");
 
         //11 Collection Mint
-        byte[] msg11 = converTobyte("3cf0d1d9528cafadd61325b9b0b7245b15e17f39b67e3d96c6a30981b3dce193");
+        //byte[] msg11 = converTobyte("3cf0d1d9528cafadd61325b9b0b7245b15e17f39b67e3d96c6a30981b3dce193");
+        byte[] msg11 = Collection_Mint;
 
         //12 Collection Authority Record
-        byte[] msg12 = converTobyte("7f4378eabb6dae1f2edc41b923ef56978555ed4ecd85af848907ec509f966ecd");
+        //byte[] msg12 = converTobyte("7f4378eabb6dae1f2edc41b923ef56978555ed4ecd85af848907ec509f966ecd");
+        string collection_authority = "collection_authority";
+        byte[] collection_authority_byte = Encoding.ASCII.GetBytes(collection_authority);
+        seed = metadata_byte.Concat(Token_MetaData_Program).Concat(Collection_Mint).Concat(collection_authority_byte).Concat(collectionPda.PublicKey).ToArray();
+        byte[] msg12 = findProgramAddressSync(seed, Token_MetaData_Program, masterEditionPda).PublicKey;
 
         //13 Collection Master Edition
-        byte[] msg13 = converTobyte("9022aec47631a8aba7c7bdac46003110ee4ae5adef07f3aed843a925e80da253");
+        //byte[] msg13 = converTobyte("9022aec47631a8aba7c7bdac46003110ee4ae5adef07f3aed843a925e80da253");
+        seed = metadata_byte.Concat(Token_MetaData_Program).Concat(Collection_Mint).Concat(edition_byte).ToArray();
+        byte[] msg13 = findProgramAddressSync(seed, Token_MetaData_Program, masterEditionPda).PublicKey;
 
         //14 Associated Token Program
         byte[] msg14 = converTobyte("8c97258f4e2489f1bb3d1029148e0d830b5a1399daff1084048e7bd8dbe9f859");
