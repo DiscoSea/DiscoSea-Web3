@@ -12,6 +12,16 @@ using UnityEngine.Networking;
 public class DiscoSea_Web3 : MonoBehaviour
 {
 
+    byte[] feePayer_sK;
+    byte[] feePayer_pK;
+    byte[] Token_MetaData_Program = converTobyte("0b7065b1e3d17c45389d527f6b04c3cd58b86c731aa0fdb549b6d1bc03f82946");
+    byte[] Associated_Token_Program = converTobyte("8c97258f4e2489f1bb3d1029148e0d830b5a1399daff1084048e7bd8dbe9f859");
+    byte[] TOKEN_PROGRAM_ID = converTobyte("06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9");
+    byte[] CMV2 = converTobyte("092aee3dfc2d0e55782313837969eaf52151c096c06b5c2a82f086a503e82c34");
+    Pda metaDataPda = new Pda();
+    Pda collectionPda = new Pda();
+    Pda masterEditionPda = new Pda();
+
     public class Keypair
     {
         public byte[] PublicKey;
@@ -19,6 +29,14 @@ public class DiscoSea_Web3 : MonoBehaviour
         public string PublicKeyBase58;
         public string[] mnemonic = new string[12];
     }
+
+
+    public class Pda
+    {
+        public byte[] PublicKey;
+        public byte nonce;
+    }
+
 
 
     string[] bip39_2022 = new string[2048]  {
@@ -2455,18 +2473,29 @@ public class DiscoSea_Web3 : MonoBehaviour
 
     }
 
-    public string GetPublicKey(string mnemonic_string)
+    public byte[] GetPublicKey(string mnemonic_string)
     {
+
+        string passphrase = "";
+
+        // Convert mnemonic and passphrase to UTF-8 NFKD byte arrays
+        byte[] mnemonicBytes = Encoding.UTF8.GetBytes(mnemonic_string.Normalize(NormalizationForm.FormKD));
+        byte[] saltBytes = Encoding.UTF8.GetBytes("mnemonic" + passphrase.Normalize(NormalizationForm.FormKD));
+
+        // Generate key using PBKDF2 with HMAC-SHA512
+        Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(mnemonicBytes, saltBytes, 2048, HashAlgorithmName.SHA512);
+        byte[] keyBytes = pbkdf2.GetBytes(64);
+
+        // sK
+        byte[] sK = new byte[32]; // new array to hold the 32 bytes
+
+        // Copy the first 32 bytes of the full array to the sub array
+        Array.Copy(keyBytes, 0, sK, 0, 32);
 
         //rfc test vector
         //string secret = "c5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7";
 
-        string secret = "EA1622C08C673538021A4CD547033162A0C52C2168FCABC3D1BE0914B0F6DB35";
-
-        byte[] sK = Enumerable.Range(0, secret.Length)
-                         .Where(x => x % 2 == 0)
-                         .Select(x => Convert.ToByte(secret.Substring(x, 2), 16))
-                         .ToArray();
+        //string secret = "EA1622C08C673538021A4CD547033162A0C52C2168FCABC3D1BE0914B0F6DB35";
 
         string hexString = expand_sk_a(sK);
 
@@ -2480,72 +2509,118 @@ public class DiscoSea_Web3 : MonoBehaviour
         byte[] publicKey = point_compress(point_mul(sNum, G));
 
 
-        hexString = BitConverter.ToString(publicKey).Replace("-", "");
+        //hexString = BitConverter.ToString(publicKey).Replace("-", "");
 
 
        
-            //Debug.Log("ed25519 PubKey: " + hexString);
-            //Debug.Log("Solana PubKey: " + base_58_encoding(publicKey));
+        //    //Debug.Log("ed25519 PubKey: " + hexString);
+        //    //Debug.Log("Solana PubKey: " + base_58_encoding(publicKey));
         
 
 
-        byte[] msg1 = { 0x01, 0x00, 0x01, 0x03 };
+        //byte[] msg1 = { 0x01, 0x00, 0x01, 0x03 };
 
-        //from pubkey
-        byte[] msg2 = { 0x82, 0x09, 0x69, 0x6e, 0x38, 0x5a, 0x2a, 0x50, 0x80, 0x65, 0xfa, 0xe4, 0x6b,
-                        0xd2, 0x7a, 0xc8, 0xbd, 0x7c, 0xfa, 0xae, 0x6c, 0xe0, 0x94, 0xe3, 0x66, 0xec,
-                        0x05, 0x11, 0x13, 0x2b, 0x00, 0xfb };
-        //to pubkey
-        byte[] msg3 = { 0x9b, 0x88, 0xa9, 0x04, 0xc8, 0x5b, 0xa6, 0xaa, 0x4c, 0x07, 0xa1, 0x79, 0xfb,
-                        0xe9, 0x11, 0xc7, 0xcf, 0x68, 0x8e, 0x21, 0x62, 0x8c, 0xbf, 0xea, 0x24, 0x0e,
-                        0x12, 0x43, 0x27, 0xcb, 0x65, 0x50 };
+        ////from pubkey
+        //byte[] msg2 = { 0x82, 0x09, 0x69, 0x6e, 0x38, 0x5a, 0x2a, 0x50, 0x80, 0x65, 0xfa, 0xe4, 0x6b,
+        //                0xd2, 0x7a, 0xc8, 0xbd, 0x7c, 0xfa, 0xae, 0x6c, 0xe0, 0x94, 0xe3, 0x66, 0xec,
+        //                0x05, 0x11, 0x13, 0x2b, 0x00, 0xfb };
+        ////to pubkey
+        //byte[] msg3 = { 0x9b, 0x88, 0xa9, 0x04, 0xc8, 0x5b, 0xa6, 0xaa, 0x4c, 0x07, 0xa1, 0x79, 0xfb,
+        //                0xe9, 0x11, 0xc7, 0xcf, 0x68, 0x8e, 0x21, 0x62, 0x8c, 0xbf, 0xea, 0x24, 0x0e,
+        //                0x12, 0x43, 0x27, 0xcb, 0x65, 0x50 };
 
-        //solana system programID
-        byte[] msg4 = new byte[32];
+        ////solana system programID
+        //byte[] msg4 = new byte[32];
 
-        //recent block hash
-        byte[] msg5 = { 0x3e, 0xd8, 0x93, 0x98, 0x01, 0x2f, 0x67, 0x06, 0x5f, 0xd5, 0xe6, 0x7f, 0xcc,
-                        0x77, 0x6f, 0x19, 0x5a, 0xfd, 0x52, 0x12, 0x07, 0x53, 0x47, 0x07, 0xfa, 0x4f,
-                        0xcd, 0x09, 0x3c, 0x29, 0x29, 0x06};
+        ////recent block hash
+        //byte[] msg5 = { 0x3e, 0xd8, 0x93, 0x98, 0x01, 0x2f, 0x67, 0x06, 0x5f, 0xd5, 0xe6, 0x7f, 0xcc,
+        //                0x77, 0x6f, 0x19, 0x5a, 0xfd, 0x52, 0x12, 0x07, 0x53, 0x47, 0x07, 0xfa, 0x4f,
+        //                0xcd, 0x09, 0x3c, 0x29, 0x29, 0x06};
 
-        byte[] msg6 = { 0x01, 0x02, 0x02, 0x00, 0x01, 0x0c };
+        //byte[] msg6 = { 0x01, 0x02, 0x02, 0x00, 0x01, 0x0c };
 
-        byte[] msg7 = { 0x02, 0x00, 0x00, 0x00, 0xe8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        //byte[] msg7 = { 0x02, 0x00, 0x00, 0x00, 0xe8, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 
 
-        byte[] msg = msg1
-            .Concat(msg2)
-            .Concat(msg3)
-            .Concat(msg4)
-            .Concat(msg5)
-            .Concat(msg6)
-            .Concat(msg7)
-            .ToArray();
+        //byte[] msg = msg1
+        //    .Concat(msg2)
+        //    .Concat(msg3)
+        //    .Concat(msg4)
+        //    .Concat(msg5)
+        //    .Concat(msg6)
+        //    .Concat(msg7)
+        //    .ToArray();
 
      
-           // Debug.Log("msg: " + BitConverter.ToString(msg).Replace("-", ""));
+        //   // Debug.Log("msg: " + BitConverter.ToString(msg).Replace("-", ""));
         
 
-        byte[] signature = sign_msg(sK, msg);
+        //byte[] signature = sign_msg(sK, msg);
 
        
-           // Debug.Log("Signature: " + BitConverter.ToString(signature).Replace("-", ""));
+        //   // Debug.Log("Signature: " + BitConverter.ToString(signature).Replace("-", ""));
         
 
-        byte[] msgPreFix = { 0x01 };
+        //byte[] msgPreFix = { 0x01 };
 
-        string rawTransaction = Convert.ToBase64String(msgPreFix.Concat(signature).Concat(msg).ToArray());
+        //string rawTransaction = Convert.ToBase64String(msgPreFix.Concat(signature).Concat(msg).ToArray());
 
        
-        //Debug.Log(rawTransaction);
+        ////Debug.Log(rawTransaction);
         
 
 
-        return "";
+        return publicKey;
 
 
     }
+
+
+    public byte[] GetSkFromMnemonic(string mnemonic_string)
+    {
+
+        string passphrase = "";
+
+        // Convert mnemonic and passphrase to UTF-8 NFKD byte arrays
+        byte[] mnemonicBytes = Encoding.UTF8.GetBytes(mnemonic_string.Normalize(NormalizationForm.FormKD));
+        byte[] saltBytes = Encoding.UTF8.GetBytes("mnemonic" + passphrase.Normalize(NormalizationForm.FormKD));
+
+        // Generate key using PBKDF2 with HMAC-SHA512
+        Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(mnemonicBytes, saltBytes, 2048, HashAlgorithmName.SHA512);
+        byte[] keyBytes = pbkdf2.GetBytes(64);
+
+        // sK
+        byte[] sK = new byte[32]; // new array to hold the 32 bytes
+
+        // Copy the first 32 bytes of the full array to the sub array
+        Array.Copy(keyBytes, 0, sK, 0, 32);
+
+        return sK;
+
+
+    }
+
+    public byte[] GetPkFromSk(byte[] sK)
+    {
+        string hexString = expand_sk_a(sK);
+
+        BigInteger sNum = BigInteger.Parse(hexString, NumberStyles.AllowHexSpecifier);
+
+        BigInteger[] Q = point_mul(sNum, G);
+
+        byte[] publicKey = point_compress(point_mul(sNum, G));
+
+        // sK
+        byte[] pK = new byte[32]; // new array to hold the 32 bytes
+
+        // Copy the first 32 bytes of the full array to the sub array
+        Array.Copy(publicKey, 0, pK, 0, 32);
+
+        return pK;
+
+    }
+
 
 
 
@@ -2616,6 +2691,7 @@ public class DiscoSea_Web3 : MonoBehaviour
         if (s.Length != 32)
         {
             throw new ArgumentException("Invalid input length for decompression");
+            
         }
 
         BigInteger y = new BigInteger(s);
@@ -2637,7 +2713,7 @@ public class DiscoSea_Web3 : MonoBehaviour
     }
 
 
-    byte[] converTobyte(string str)
+    static byte[] converTobyte(string str)
     {
 
         byte[] res = Enumerable.Range(0, str.Length)
@@ -2678,31 +2754,74 @@ public class DiscoSea_Web3 : MonoBehaviour
 
     }
 
+    byte[] mnemonic_to_sk(string mnemonic_string)
+    {
+        string passphrase = "";
+
+        // Convert mnemonic and passphrase to UTF-8 NFKD byte arrays
+        byte[] mnemonicBytes = Encoding.UTF8.GetBytes(mnemonic_string.Normalize(NormalizationForm.FormKD));
+        byte[] saltBytes = Encoding.UTF8.GetBytes("mnemonic" + passphrase.Normalize(NormalizationForm.FormKD));
+
+        // Generate key using PBKDF2 with HMAC-SHA512
+        Rfc2898DeriveBytes pbkdf2 = new Rfc2898DeriveBytes(mnemonicBytes, saltBytes, 2048, HashAlgorithmName.SHA512);
+        byte[] keyBytes = pbkdf2.GetBytes(64);
+
+        // sK
+        byte[] sK = new byte[32]; // new array to hold the 32 bytes
+
+        // Copy the first 32 bytes of the full array to the sub array
+        Array.Copy(keyBytes, 0, sK, 0, 32);
+
+        return keyBytes;
+    }
+
+
 
     void metaMint()
     {
+        
+        string mnemonic = "pill tomorrow foster begin walnut borrow virtual kick shift mutual shoe scatter";
 
-        byte[] feePayer_sK = converTobyte    ("1FD39E5146E3EC66120326216A9B6435593EBC20D9C62B9A3DF5C83511096D02");
-        byte[] mint_account_sK = converTobyte("EA1622C08C673538021A4CD547033162A0C52C2168FCABC3D1BE0914B0F6DB35");
+
+        feePayer_sK = GetSkFromMnemonic(mnemonic);
+        feePayer_pK = GetPkFromSk(feePayer_sK);
+
+
+        byte[] mint_account_sK = converTobyte("CAABC08196BDCCF18E47CD02516102B030512D01608ADC84E783784D422861AC");
+
+
+        byte[] seed;
+
+        //byte[] mint_account_sK = keypair.SecretKey;
 
         //transaction base [2,0,14,23]
         byte[] msg0 = { 0x02, 0x00, 0x0E, 0x17 };
 
         //1 feePayer public key
-        byte[] msg1 = getPubV2(feePayer_sK);
+        //byte[] msg1 = getPubV2(feePayer_sK);
+        byte[] msg1 = feePayer_pK;
 
         //2: Mint Account public key
-        byte[] msg2 = getPubV2(mint_account_sK);
+        byte[] msg2 = GetPkFromSk(mint_account_sK);
 
 
         //3: Collection Pda
-        byte[] msg3 = converTobyte("2375d6c64234d05e0a487a48f75b794a6daae9695f555f57060907480fbf1718");
+        //byte[] msg3 = converTobyte("2375d6c64234d05e0a487a48f75b794a6daae9695f555f57060907480fbf1718");
+        string collectionPDA = "collection";
+        byte[] collectionA = Encoding.ASCII.GetBytes(collectionPDA);
+        seed = collectionA.Concat(converTobyte("f95cb71bb699fb7d31f9c7b7e95dd58719594455448ac64e822f87dbc8630800")).ToArray();
+        collectionPda = findProgramAddressSync(seed, CMV2, collectionPda);
+        byte[] msg3 = collectionPda.PublicKey;
 
         //4: Master Edition
         byte[] msg4 = converTobyte("2fa4528add9677f48ae1bf55ff73522749009964d9e846dbe6d0b1f1046d2fdd");
 
         //5: Associated Token Program: Account
-        byte[] msg5 = converTobyte("84d43da655ba744f6fec8e572c633fbe3b1c48e410590933d1a409e6672662f0");
+        //byte[] msg5 = converTobyte("84d43da655ba744f6fec8e572c633fbe3b1c48e410590933d1a409e6672662f0");
+        ////mint_account_pK
+        //byte[] t3 = msg2;
+        seed = feePayer_pK.Concat(TOKEN_PROGRAM_ID).Concat(msg2).ToArray();
+        byte[] msg5 = findProgramAddressSync(seed, Associated_Token_Program, metaDataPda).PublicKey;
 
         //6: Collection Metadata
         byte[] msg6 = converTobyte("f0a630e4329b26a08e2241c2f511597ef2731074429ccccc0aec0be1ea1355bf");
@@ -2713,8 +2832,19 @@ public class DiscoSea_Web3 : MonoBehaviour
         //8: Candy Machine ID
         byte[] msg8 = converTobyte("f95cb71bb699fb7d31f9c7b7e95dd58719594455448ac64e822f87dbc8630800");
 
+
         //9: METADATA
-        byte[] msg9 = converTobyte("f50068f43e7b6541a4ff1cbb0f4d4d3888d853d69db702b638827203c72602f0");
+        //byte[] msg9 = converTobyte("f50068f43e7b6541a4ff1cbb0f4d4d3888d853d69db702b638827203c72602f0");
+        string myString = "metadata";
+        byte[] t1 = Encoding.ASCII.GetBytes(myString);
+        Debug.Log(returnArrayString(0, t1.Length, t1));
+        //17 Token_MetaData_Program
+        byte[] t2 = Token_MetaData_Program;
+        //mint_account_pK
+        byte[] t3 = msg2;
+        seed = t1.Concat(t2).Concat(t3).ToArray();
+        metaDataPda = findProgramAddressSync(seed, Token_MetaData_Program, metaDataPda);
+        byte[] msg9 = metaDataPda.PublicKey;
 
         //10: SystemProgram
         byte[] msg10 = converTobyte("0000000000000000000000000000000000000000000000000000000000000000");
@@ -2728,7 +2858,7 @@ public class DiscoSea_Web3 : MonoBehaviour
         //13 Collection Master Edition
         byte[] msg13 = converTobyte("9022aec47631a8aba7c7bdac46003110ee4ae5adef07f3aed843a925e80da253");
 
-        //14 Associated Token
+        //14 Associated Token Program
         byte[] msg14 = converTobyte("8c97258f4e2489f1bb3d1029148e0d830b5a1399daff1084048e7bd8dbe9f859");
 
         //15 cmV2
@@ -2805,7 +2935,7 @@ public class DiscoSea_Web3 : MonoBehaviour
         byte[] msg37 = { 0x0E, 0x10, 0x07, 0x16, 0x00, 0x06, 0x08, 0x01, 0x00, 0x00, 0x03, 0x10, 0x15, 0x09, 0x13, 0x12, 0x14, 0x11, 0x09 };
 
         //prep IX5 data [211,57,6,167,15,219,35,251,254] timestamp data,PDA bump
-        byte[] msg38 = { 0xD3, 0x39, 0x06, 0xA7 , 0x0F, 0xDB , 0x23, 0xFB, 0xFE };
+        byte[] msg38 = { 0xD3, 0x39, 0x06, 0xA7 , 0x0F, 0xDB , 0x23, 0xFB, collectionPda.nonce };
 
         //prep IX6
         //[14,11,7,8,0,2,16,17,10,5,12,15,11,8]
@@ -2932,25 +3062,25 @@ public class DiscoSea_Web3 : MonoBehaviour
         //Debug.Log(msg40.Length);
 
 
-        //Debug.Log(rawTransaction[0]);
+        Debug.Log(rawTransaction[0]);
 
         //Debug.Log(returnArrayString(0, 1107, rawTransaction));
-        //Debug.Log(returnArrayString(0, 1, rawTransaction));
-        //Debug.Log(returnArrayString(1, 64, rawTransaction));
-        //Debug.Log(returnArrayString(65, 64, rawTransaction));
-        //Debug.Log(returnArrayString(65 + 64, 4, rawTransaction));
+        Debug.Log(returnArrayString(0, 1, rawTransaction));
+        Debug.Log(returnArrayString(1, 64, rawTransaction));
+        Debug.Log(returnArrayString(65, 64, rawTransaction));
+        Debug.Log(returnArrayString(65 + 64, 4, rawTransaction));
 
 
-        //Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 0, 32, rawTransaction));
-        //Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 1, 32, rawTransaction));
-        //Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 2, 32, rawTransaction));
-        //Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 3, 32, rawTransaction));
-        //Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 4, 32, rawTransaction));
-        //Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 5, 32, rawTransaction));
-        //Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 6, 32, rawTransaction));
+        Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 0, 32, rawTransaction));
+        Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 1, 32, rawTransaction));
+        Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 2, 32, rawTransaction));
+        Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 3, 32, rawTransaction));
+        Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 4, 32, rawTransaction));
+        Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 5, 32, rawTransaction));
+        Debug.Log(returnSolanaPubKey(65 + 64 + 4 + 32 * 6, 32, rawTransaction));
 
 
-        if(rawTransaction.Length == 1106)
+        if (rawTransaction.Length == 1106)
         {
             string payload = Convert.ToBase64String(rawTransaction);
 
@@ -2970,8 +3100,12 @@ public class DiscoSea_Web3 : MonoBehaviour
         }
         else
         {
-            // Debug.Log("raw transaction has wrong length size");
+            Debug.Log("raw transaction has wrong length size");
+            Debug.Log(rawTransaction.Length);
         }
+
+       
+
 
 
 
@@ -3189,20 +3323,142 @@ public class DiscoSea_Web3 : MonoBehaviour
         }
     }
 
-  
+
+    Pda findProgramAddressSync(byte[] seed, byte[] programID, Pda pda)
+    {
+        byte nonce = 0xFF;
+
+        Debug.Log(returnArrayString(0, seed.Length, seed));
+
+        Array.Resize(ref seed, seed.Length + 1);
+        seed[seed.Length - 1] = nonce;
+
+        string pdaString = "ProgramDerivedAddress";
+        byte[] pdaSeed = Encoding.ASCII.GetBytes(pdaString);
+
+        byte[] buffer = seed.Concat(programID).Concat(pdaSeed).ToArray();
+
+        // Create an instance of the SHA256 algorithm class
+        SHA256 sha256 = SHA256.Create();
+
+        // Compute hash value of the input byte array
+        byte[] publicKeyBytes = sha256.ComputeHash(buffer);
+
+
+        Tuple<BigInteger, BigInteger, BigInteger, BigInteger> res = PointDecompress(publicKeyBytes);
+
+        while (res != null)
+        {
+            nonce = (byte)(nonce - 0x01);
+            seed[seed.Length - 1] = nonce;
+            pdaSeed = Encoding.ASCII.GetBytes(pdaString);
+
+            buffer = seed.Concat(programID).Concat(pdaSeed).ToArray();
+
+            Debug.Log(returnArrayString(0, buffer.Length, buffer));
+
+            publicKeyBytes = sha256.ComputeHash(buffer);
+
+            Debug.Log(returnArrayString(0, 32, publicKeyBytes));
+
+            res = PointDecompress(publicKeyBytes);
+
+            if (nonce == 0)
+            {
+                break;
+            }
+        }
+
+        if (nonce != 0)
+        {
+            Debug.Log("PDA Found");
+            Debug.Log(nonce);
+            Debug.Log(res);
+            Debug.Log(returnSolanaPubKey(0, 32, publicKeyBytes));
+
+            pda.PublicKey = publicKeyBytes;
+            pda.nonce = nonce;
+
+            return pda;
+        }
+        else
+        {
+            Debug.Log("PDA never found");
+
+            return null;
+        }
+
+
+
+
+
+        
+    }
 
 
     // Start is called before the first frame update
     void Start()
     {
-        Keypair keypair = new Keypair();
-        keypair = GenerateKeyPair();
-        Debug.Log(returnArrayString(0,32,keypair.PublicKey));
-        Debug.Log(returnArrayString(0,32,keypair.SecretKey));
-        Debug.Log(string.Join(" ", keypair.mnemonic));
-        Debug.Log(keypair.PublicKeyBase58);
 
+        string mnemonic = "pill tomorrow foster begin walnut borrow virtual kick shift mutual shoe scatter";
+
+
+        feePayer_sK = GetSkFromMnemonic(mnemonic);
+        feePayer_pK = GetPkFromSk(feePayer_sK);
         
+
+        //Debug.Log("GetPublicKey");
+        //Debug.Log(returnSolanaPubKey(0, 32, feePayer_pK));
+
+
+
+
+     
+        //Pda masterEditionPda = new Pda();
+        //Pda candyMachinePda = new Pda();
+        //Pda freezePda = new Pda();
+        //Pda collectionPda = new Pda();
+
+
+        //Keypair keypair = new Keypair();
+        //keypair = GenerateKeyPair();
+        //Debug.Log(returnArrayString(0, 32, keypair.PublicKey));
+        //Debug.Log(returnArrayString(0, 32, keypair.SecretKey));
+        //Debug.Log(string.Join(" ", keypair.mnemonic));
+        //Debug.Log(keypair.PublicKeyBase58);
+
+        //byte[] feePayer_sK = converTobyte    ("1FD39E5146E3EC66120326216A9B6435593EBC20D9C62B9A3DF5C83511096D02");
+
+        //byte[] feePayer_sK = mnemonic_to_sk(mnemonic);
+        //byte[] mint_account_sK = converTobyte("EA1622C08C673538021A4CD547033162A0C52C2168FCABC3D1BE0914B0F6DB35");
+
+
+        //Debug.Log("Fee Payer Sk");
+        //Debug.Log(returnArrayString(0, 32, feePayer_sK));
+        //Debug.Log("Fee Payer pubkey Array");
+        //Debug.Log(returnArrayString(0, 32, getPubV2(feePayer_sK)));
+
+
+
+
+
+        //string myString3 = "candy_machine";
+        //byte[] t5 = Encoding.ASCII.GetBytes(myString3);
+        //byte[] seed2;
+        //seed2 = t5.Concat(converTobyte("f95cb71bb699fb7d31f9c7b7e95dd58719594455448ac64e822f87dbc8630800")).ToArray();
+        //candyMachinePda = findProgramAddressSync(seed2, converTobyte("092aee3dfc2d0e55782313837969eaf52151c096c06b5c2a82f086a503e82c34"), candyMachinePda);
+
+        //string myString4 = "freeze";
+        //byte[] t6 = Encoding.ASCII.GetBytes(myString4);
+        //byte[] seed3;
+        //seed3 = t6.Concat(converTobyte("f95cb71bb699fb7d31f9c7b7e95dd58719594455448ac64e822f87dbc8630800")).ToArray();
+        //freezePda = findProgramAddressSync(seed3, converTobyte("092aee3dfc2d0e55782313837969eaf52151c096c06b5c2a82f086a503e82c34"), freezePda);
+
+
+
+
+        //Debug.Log(returnSolanaPubKey(0, 32, collectionPda.PublicKey));
+
 
         //Debug.Log("Testing MetaMint");
         //metaMint();
@@ -3211,7 +3467,7 @@ public class DiscoSea_Web3 : MonoBehaviour
         string postData = $"{{\"method\":\"getRecentBlockhash\",\"jsonrpc\":\"2.0\",\"params\":[{{\"commitment\":\"confirmed\"}}],\"id\":\"{id}\"}}";
         string url = "https://patient-fragrant-card.solana-devnet.quiknode.pro/3e373e17b6007e1d1eddf7f1d394df2d7a81b67e/";
 
-        //StartCoroutine(Upload(url, postData));
+        StartCoroutine(Upload(url, postData));
 
         //GetPublicKey("test");
 
